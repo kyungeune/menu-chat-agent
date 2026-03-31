@@ -45,11 +45,21 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                sh '''
+                kubectl apply -f k8s/devops-frontend.yaml
+                kubectl rollout restart deployment devops-frontend
+                kubectl rollout status deployment devops-frontend
+                '''
+            }
+        }
     }
 
     post {
         success {
-            echo 'Pipeline completed successfully.'
+            echo 'CI/CD pipeline completed successfully.'
         }
         failure {
             echo 'Pipeline failed.'
