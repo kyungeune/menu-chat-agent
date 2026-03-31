@@ -4,6 +4,8 @@ pipeline {
     environment {
         IMAGE_NAME = "amdp-registry.skala-ai.com/skala26a-ai2/sk044-frontend:latest"
         REGISTRY_URL = "amdp-registry.skala-ai.com"
+        NAMESPACE = "class-2"
+        BUILDER_NAME = "sk044builder"
     }
 
     stages {
@@ -23,15 +25,7 @@ pipeline {
             }
         }
 
-        stage('Image Build') {
-            steps {
-                sh '''
-                docker build -t $IMAGE_NAME -f frontend/Dockerfile ./frontend
-                '''
-            }
-        }
-
-        stage('Push Image') {
+        stage('Image Build & Push') {
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'harbor-credentials',
@@ -40,7 +34,16 @@ pipeline {
                 )]) {
                     sh '''
                     echo "$HARBOR_PASS" | docker login $REGISTRY_URL -u "$HARBOR_USER" --password-stdin
-                    docker push $IMAGE_NAME
+
+                    docker buildx create --name $BUILDER_NAME --use || true
+                    docker buildx use $BUILDER_NAME
+                    docker buildx inspect --bootstrap
+
+                    docker buildx build \
+                      --platform linux/amd64 \
+                      -t $IMAGE_NAME \
+                      -f frontend/Dockerfile ./frontend \
+                      --push
                     '''
                 }
             }
@@ -50,8 +53,8 @@ pipeline {
             steps {
                 sh '''
                 kubectl apply -f k8s/devops-frontend.yaml
-                kubectl rollout restart deployment devops-frontend
-                kubectl rollout status deployment devops-frontend
+                kubectl rollout restart deployment devops-frontend -n $NAMESPACE
+                kubectl rollout status deployment devops-frontend -n $NAMESPACE --timeout=120s
                 '''
             }
         }
