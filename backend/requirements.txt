@@ -1,0 +1,19 @@
+fastapi
+uvicorn[standard]
+pydantic>=2.7.4
+python-dotenv
+
+# LangChain / LangGraph
+langchain
+langchain-openai
+langchain-community
+langgraph
+
+# Vector store
+chromadb
+
+# PDF 로딩 (선택)
+pypdf
+
+# 웹 검색 (신메뉴 Agent)
+tavily-python

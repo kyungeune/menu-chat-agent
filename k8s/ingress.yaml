@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sk044-myfirst-ingress
+  namespace: class-2
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: public-nginx
+  rules:
+    - host: sk044-ingress.skala25a.project.skala-ai.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sk044-frontend-service
+                port:
+                  number: 8501
+  tls:
+    - hosts:
+        - sk044-ingress.skala25a.project.skala-ai.com
+      secretName: sk044-ingress-project-tls-cert

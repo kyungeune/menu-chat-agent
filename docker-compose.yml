@@ -1,0 +1,33 @@
+services:
+
+  backend:
+    build:
+      context: .           # 루트 전체를 빌드 컨텍스트로 사용 (app/ 패키지 포함)
+      dockerfile: backend/Dockerfile
+    container_name: ai-agent-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./chroma_db:/app/chroma_db   # ChromaDB 영속 마운트
+      - ./docs:/app/docs             # 문서 폴더 마운트
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ai-agent-frontend
+    ports:
+      - "8501:8501"
+    env_file:
+      - ./frontend/.env
+    depends_on:
+      - backend        # ← 헬스체크 조건 제거, 단순 의존성만
+    restart: unless-stopped

@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sk044-frontend
+  namespace: class-2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sk044-frontend
+  template:
+    metadata:
+      labels:
+        app: sk044-frontend
+    spec:
+      imagePullSecrets:
+        - name: harbor-secret
+      containers:
+        - name: frontend
+          image: amdp-registry.skala-ai.com/skala25a/sk044-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8501
+          env:
+            - name: USER_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: sk044-config
+                  key: USER_NAME
+            - name: NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: sk044-config
+                  key: NAMESPACE
+            - name: BACKEND_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: sk044-config
+                  key: BACKEND_URL
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8501
+            initialDelaySeconds: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8501
+            initialDelaySeconds: 60
+            periodSeconds: 10

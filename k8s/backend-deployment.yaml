@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sk044-backend
+  namespace: class-2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sk044-backend
+  template:
+    metadata:
+      labels:
+        app: sk044-backend
+    spec:
+      imagePullSecrets:
+        - name: harbor-secret
+      containers:
+        - name: backend
+          image: amdp-registry.skala-ai.com/skala25a/sk044-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: USER_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: sk044-config
+                  key: USER_NAME
+            - name: NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: sk044-config
+                  key: NAMESPACE
+            - name: OPENAI_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: sk044-config
+                  key: OPENAI_MODEL
+            - name: CHROMA_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: sk044-config
+                  key: CHROMA_PATH
+            - name: DOCS_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: sk044-config
+                  key: DOCS_PATH
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: sk044-backend-secret
+                  key: OPENAI_API_KEY
+            - name: TAVILY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: sk044-backend-secret
+                  key: TAVILY_API_KEY
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
