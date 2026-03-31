@@ -1,5 +1,6 @@
 ## 🔧 Environment Variables
 + test를 위한 수정
++ CI CD 검증을 위한 수정
 
 프로젝트 실행을 위해 `.env` 파일을 생성해야 합니다.
 
