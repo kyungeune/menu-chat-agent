@@ -52,9 +52,9 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 sh '''
-                kubectl apply -f k8s/sk044-devops-frontend.yaml
-                kubectl rollout restart deployment devops-frontend -n $NAMESPACE
-                kubectl rollout status deployment devops-frontend -n $NAMESPACE --timeout=120s
+                kubectl apply -f k8s/sk044-devops-frontend.yaml --validate=false
+                kubectl rollout restart deployment sk044-devops-frontend -n $NAMESPACE
+                kubectl rollout status deployment sk044-devops-frontend -n $NAMESPACE --timeout=120s
                 '''
             }
         }
