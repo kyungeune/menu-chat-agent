@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devops-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devops-frontend
+  template:
+    metadata:
+      labels:
+        app: devops-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: amdp-registry.skala-ai.com/skala26a-ai2/sk044-frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8501
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devops-frontend-service
+spec:
+  selector:
+    app: devops-frontend
+  ports:
+    - port: 8501
+      targetPort: 8501
+  type: NodePort
