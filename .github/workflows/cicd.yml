@@ -1,4 +1,4 @@
-name: CI-CD Pipeline
+name: Build and Deploy to EKS via Harbor
 
 on:
   push:
@@ -6,18 +6,46 @@ on:
       - main
 
 env:
-  IMAGE_NAME: amdp-registry.skala-ai.com/skala26a-ai2/sk044-frontend:latest
-  REGISTRY_URL: amdp-registry.skala-ai.com
-  NAMESPACE: class-2
+  APP_NAME: sk044-frontend
   DEPLOYMENT_NAME: sk044-devops-frontend
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
+    env:
+      HARBOR_REGISTRY: ${{ secrets.HARBOR_REGISTRY }}
+      HARBOR_PROJECT: ${{ secrets.HARBOR_PROJECT }}
+      HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+      HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
+
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+
+      EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
+      K8S_NAMESPACE: ${{ secrets.K8S_NAMESPACE }}
+
     steps:
-      - name: Checkout source code
+      - name: Checkout source
         uses: actions/checkout@v4
+
+      - name: Set image metadata
+        run: |
+          SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+          IMAGE_TAG=${GITHUB_RUN_NUMBER}-${SHORT_SHA}
+          IMAGE_REPO=${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${APP_NAME}
+          FULL_IMAGE=${IMAGE_REPO}:${IMAGE_TAG}
+
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
+          echo "IMAGE_REPO=${IMAGE_REPO}" >> $GITHUB_ENV
+          echo "FULL_IMAGE=${FULL_IMAGE}" >> $GITHUB_ENV
+
+      - name: Build application
+        run: |
+          echo "Code build stage"
+          ls -al
+          ls -al frontend
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -25,9 +53,9 @@ jobs:
       - name: Log in to Harbor
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY_URL }}
-          username: ${{ secrets.HARBOR_USERNAME }}
-          password: ${{ secrets.HARBOR_PASSWORD }}
+          registry: ${{ env.HARBOR_REGISTRY }}
+          username: ${{ env.HARBOR_USERNAME }}
+          password: ${{ env.HARBOR_PASSWORD }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
@@ -36,21 +64,45 @@ jobs:
           file: ./frontend/Dockerfile
           push: true
           platforms: linux/amd64
-          tags: ${{ env.IMAGE_NAME }}
+          tags: |
+            ${{ env.FULL_IMAGE }}
+            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/${{ env.APP_NAME }}:latest
 
-      - name: Set up kubectl
+      - name: Install kubectl
         uses: azure/setup-kubectl@v4
         with:
           version: latest
 
-      - name: Set kubeconfig
-        run: |
-          mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 --decode > $HOME/.kube/config
-          chmod 600 $HOME/.kube/config
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy to Kubernetes
+      - name: Update kubeconfig for EKS
         run: |
-          kubectl apply -f k8s/sk044-devops-frontend.yaml --validate=false
-          kubectl rollout restart deployment $DEPLOYMENT_NAME -n $NAMESPACE
-          kubectl rollout status deployment $DEPLOYMENT_NAME -n $NAMESPACE --timeout=120s
+          aws eks update-kubeconfig \
+            --region ${AWS_REGION} \
+            --name ${EKS_CLUSTER_NAME}
+
+      - name: Render deployment manifest
+        run: |
+          cp deploy/deployment.yaml deploy/deployment-rendered.yaml
+          sed -i "s|__IMAGE__|${FULL_IMAGE}|g" deploy/deployment-rendered.yaml
+
+      - name: Deploy to EKS
+        run: |
+          kubectl apply -f deploy/deployment-rendered.yaml --validate=false
+          kubectl apply -f deploy/service.yaml --validate=false
+
+      - name: Check rollout status
+        run: |
+          kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${K8S_NAMESPACE} --timeout=300s
+          kubectl get pods -n ${K8S_NAMESPACE}
+          kubectl get svc -n ${K8S_NAMESPACE}
+
+      - name: Logout Harbor
+        if: always()
+        run: |
+          docker logout ${HARBOR_REGISTRY} || true

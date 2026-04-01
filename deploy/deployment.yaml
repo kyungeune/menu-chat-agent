@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sk044-devops-frontend
+  namespace: class-2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devops-frontend
+  template:
+    metadata:
+      labels:
+        app: devops-frontend
+    spec:
+      imagePullSecrets:
+        - name: sk044-harbor-secret
+      containers:
+        - name: devops-frontend
+          image: __IMAGE__
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8501
