@@ -1,7 +1,11 @@
 # 🤖 AI Agent Hub
 
 **RAG 문서 챗봇** + **신메뉴 개발 AI Agent** 통합 프로젝트
+RAG 문서 챗봇과 신메뉴 개발 Agent를 하나의 서비스로 구성한 프로젝트입니다.  
+Frontend는 Streamlit, Backend는 FastAPI로 구성되어 있으며, 기능은 크게 두 가지입니다.
 
+- **RAG 문서 챗봇**: 내부 문서를 기반으로 질의응답
+- **신메뉴 개발 Agent**: 사용자 입력을 순차 수집한 뒤 시장조사 → 메뉴기획 → 운영검증 수행
 ```
 Streamlit Frontend  (port 8501)
   ├── 탭 1: 📚 RAG 문서 챗봇     → POST /chat
@@ -20,34 +24,37 @@ FastAPI Backend  (port 8000)
 
 ## 📁 폴더 구조
 
-```
+```text
 menu-agent-final/
-├── app/                        ← 공통 패키지 (RAG graph, tools)
-│   ├── config.py
-│   ├── graph.py
-│   ├── rag.py                  ← 문서 임베딩 스크립트
-│   └── tools.py
-├── backend/
-│   ├── app/
-│   │   ├── router_rag.py       ← /chat 엔드포인트
-│   │   ├── router_menu.py      ← /menu-chat 엔드포인트
-│   │   └── menu/
-│   │       ├── pipeline.py     ← LangGraph 파이프라인
-│   │       ├── session.py      ← 세션 상태 관리
-│   │       └── chat.py         ← 대화 로직
-│   ├── main.py
+├── app/                             # 공통 모듈 (RAG 관련 핵심 로직)
+│   ├── config.py                    # 환경변수 / 모델 설정
+│   ├── graph.py                     # LangGraph 기반 RAG 그래프
+│   ├── rag.py                       # docs/ 문서를 임베딩하여 ChromaDB에 적재
+│   └── tools.py                     # rag_search 등 RAG 도구 정의
+│
+├── backend/                         # FastAPI 백엔드
+│   ├── main.py                      # FastAPI 앱 시작점, CORS, 라우터 등록, /health
 │   ├── requirements.txt
-│   └── Dockerfile
-├── frontend/
-│   ├── streamlit_app.py
+│   ├── Dockerfile
+│   └── app/
+│       ├── router_rag.py            # POST /chat 엔드포인트
+│       ├── router_menu.py           # /menu-chat 관련 엔드포인트
+│       └── menu/
+│           ├── chat.py              # 신메뉴 Agent 대화 흐름 제어
+│           ├── session.py           # 세션 상태 저장 및 stage 관리
+│           └── pipeline.py          # 시장조사 → 메뉴기획 → 검증 파이프라인 실행
+│
+├── frontend/                        # Streamlit 프론트엔드
+│   ├── streamlit_app.py             # 사용자 UI
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   └── .env
-├── chroma_db/                  ← ChromaDB 자동 생성됨
-├── docs/                       ← RAG 문서 넣는 폴더
+│
+├── chroma_db/                       # ChromaDB 저장 폴더 (자동 생성)
+├── docs/                            # RAG 검색 대상 문서 폴더
 │   └── sample_knowledge.txt
-├── docker-compose.yml
-├── .env                        ← API 키 설정
+├── docker-compose.yml               # frontend / backend 통합 실행
+├── .env                             # OpenAI, Tavily 등 API 키 설정
 └── README.md
 ```
 
